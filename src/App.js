@@ -9,11 +9,12 @@ import { useState } from 'react';
 // firebase initialization
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
-}else {
+} else {
   firebase.app(); // if already initialized, use that one
 }
 
 function App() {
+  const [newUser, setNewUser] = useState(false);
   const [user, setUser] = useState({
     isSignIn: false,
     name: '',
@@ -21,7 +22,7 @@ function App() {
     password: '',
     photo: '',
     success: false,
-    error:'',
+    error: '',
   });
 
   // handle Change
@@ -51,14 +52,16 @@ function App() {
   // Form submit 
   const handleSubmit = (event) => {
     // console.log(user.email,user.password);
-    if (user.email && user.password) {
+    // Sign Up 
+    if (newUser && user.email && user.password) {
       firebase.auth().createUserWithEmailAndPassword(user.email, user.password)
         .then((res) => {
           console.log(res);
-          const newUserInfo = {...user};
+          const newUserInfo = { ...user };
           newUserInfo.success = true;
           newUserInfo.error = '';
           setUser(newUserInfo);
+          updateUserName(user.name);
         })
         .catch((error) => {
           // const errorCode = error.code;
@@ -71,7 +74,41 @@ function App() {
         });
     }
 
+    // Sign In
+    if (!newUser && user.email && user.password) {
+      firebase.auth().signInWithEmailAndPassword(user.email, user.password)
+        .then((response) => {
+          const newUserInfo = { ...user };
+          newUserInfo.error = '';
+          newUserInfo.success = true;
+          setUser(newUserInfo);
+          console.log("Sign in user ",response.user);
+        })
+        .catch((error) => {
+          const errorMessage = error.message;
+          const newUserInfo = { ...user };
+          newUserInfo.error = errorMessage;
+          newUserInfo.success = false;
+          setUser(newUserInfo);
+        });
+    }
+
     event.preventDefault();
+  };
+
+  // UpdateUser name 
+  const updateUserName = name => {
+    const user = firebase.auth().currentUser;
+    user.updateProfile({
+      displayName: name,
+      
+    })
+    .then(() => {
+      console.log("User name update successfully");
+    })
+    .catch((error) => {
+      console.log(error.message);
+    });
   };
 
   return (
@@ -80,19 +117,21 @@ function App() {
       {/* <h3>Name: {user.name}</h3>
       <p>Email: {user.email}</p>
       <p>Password: {user.password}</p> */}
+      <input type="checkbox" name="newUser" id="" onChange={() => setNewUser(!newUser)} />
+      <label htmlFor="newUser" className="py-4"> {newUser ? <p> Sign Up</p> : <p> Sign In</p>} </label>
       <form onSubmit={handleSubmit} >
-        <input onBlur={handleChange} className="form-control text-field" type="text" name="name" id="" placeholder="Name" required />
+        {newUser && <input onBlur={handleChange} className="form-control text-field" type="text" name="name" id="" placeholder="Name" required />}
         <br />
         <input onBlur={handleChange} className="form-control text-field" type="email" name="email" placeholder="Your Email" required />
         <br />
         <input onBlur={handleChange} className="form-control text-field" type="password" name="password" placeholder="Password" required />
         <br />
-        <input type="submit" value="Submit" className="btn btn-primary"/>
+        <input type="submit" value={newUser ? 'Sign Up' : 'Sign In'} className="btn btn-primary" />
       </form>
       {/* Error Message */}
-      <p style={{color: 'red',textAlign: 'center',marginTop: '50px'}}>{user.error}</p>
+      <p style={{ color: 'red', textAlign: 'center', marginTop: '50px' }}>{user.error}</p>
       {
-        user.success && <p style={{color:'green',textAlign: 'center'}}>User created successfully</p>
+        user.success && <p style={{ color: 'green', textAlign: 'center' }}>User {newUser ? 'created' : 'Logged In'} successfully</p>
       }
     </div>
   );
